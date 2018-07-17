@@ -1,6 +1,5 @@
 import torch.nn as nn
 import torch
-from torch.autograd import Variable
 
 # Device configuration
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -19,14 +18,12 @@ class bi_LSTM(nn.Module):
     # input size = [n_snippet, 512 * 3 * 9 * 9]
     # sequence length = n_snippet
     def forward(self, x):
-        print("lstm input size:", x.shape)
-        x = x.unsqueeze(0)
-        print("after unsqueeze, lstm input size:", x.shape) # [1, n_snippets=sequence length, 512 * 3 * 9 * 9]
+        x = x.unsqueeze(0) # [1, n_snippets=sequence length, 512 * 3 * 9 * 9]
 
         n_batch = x.size(0)
 
-        h_0 = torch.zeros(self.n_layers*2, n_batch, self.hidden_size).to(device)
-        c_0 = torch.zeros(self.n_layers*2, n_batch, self.hidden_size).to(device)
+        h_0 = torch.zeros(self.n_layers*2, n_batch, self.hidden_size).to(device) # 2 for bidirectional
+        c_0 = torch.zeros(self.n_layers*2, n_batch, self.hidden_size).to(device) # 2 for bidirectional
 
         # Propagate input through lstm
         out, _ = self.lstm(x, (h_0, c_0))
