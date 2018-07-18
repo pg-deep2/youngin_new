@@ -13,9 +13,9 @@ from videoloader import get_loader, plotVideo
 # Device configuration
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-h_video_path = 'C:/Users/young/Desktop/PROGRAPHY DATA_ver2/HV'
-r_video_path = 'C:/Users/young/Desktop/PROGRAPHY DATA_ver2/RV'
-weight_path = '../../pretrained-weight/c3d.pickle'
+h_video_path = '../../dataset/HV'
+r_video_path = '../../dataset/RV'
+weight_path = '../../weight/c3d.pickle'
 
 ##############################################################
 ######  source: https://github.com/DavideA/c3d-pytorch  ######
@@ -62,17 +62,29 @@ class GRU(nn.Module):
         super(GRU, self).__init__()
 
         self.c3d = c3d
-        self.gru = nn.GRUCell(243, 1).cuda()
+        self.temporal_pool = nn.MaxPool1d(4, 4, 0).cuda()
+        self.gru = nn.GRUCell(243, 2).cuda()
 
-    def forward(self, input):
+        self.loss = nn.MSELoss() # loss for classification highlight/row
+
+    def forward(self, input, true_label):
         input_cp = input.clone() # copy input tensor for backwarding GRU
+
+        if true_label == 'HV': # if input video is highlight clip
+            self.target = np.ones([128])
+        else: # if input video is row video
+            self.target = np.zeros([128])
+
+        self.target = torch.from_numpy(self.target).float().cuda()
 
         start = 0
         end = 48
 
-        f_ht = torch.FloatTensor(128, 1).normal_().cuda() # (batch, hidden)
-        b_ht = torch.FloatTensor(128, 1).normal_().cuda() # (batch, hidden)
-        temporal_pool = nn.MaxPool1d(4, 4, 0)
+        f_ht = torch.FloatTensor(128, 2).normal_().cuda() # (batch, hidden)
+        b_ht = torch.FloatTensor(128, 2).normal_().cuda() # (batch, hidden)
+
+        f_loss_list = []
+        b_loss_list = []
 
         # forwarding once
         input = input.permute(0, 2, 1, 3, 4)  # [batch, channel, depth, height, width]
@@ -83,10 +95,17 @@ class GRU(nn.Module):
             h = self.c3d(x) # c3d forwarding => 1, 512, 3, 9, 9
             h = h.squeeze()
             h = h.view(1, 512, -1).permute(0, 2, 1)
-            h = temporal_pool(h).permute(0, 2, 1).squeeze()
+            h = self.temporal_pool(h).permute(0, 2, 1).squeeze()
 
             f_ht = (self.gru(h.cuda(), f_ht))
-            print("snippet:", forward_step, f_ht)
+            # print(f_ht.shape) # [128, 2]
+
+            f_argmax = torch.argmax(f_ht, dim=1).float().cuda() # classification
+            # print(f_argmax, f_argmax.shape) # [128]
+
+            snp_loss = self.loss(f_argmax, self.target)
+            # print("forwarding: ", forward_step, snp_loss)
+            f_loss_list.append(snp_loss.data)
 
             start += 6
             end += 6
@@ -95,42 +114,52 @@ class GRU(nn.Module):
         ##########################################################################
 
         # backwarding once
+        input_cp = input_cp.cpu()
         reversed_input = torch.from_numpy(np.flip(input_cp.numpy(), axis=1).copy()) # reverse input depth(axis=1) sequence
         reversed_input = reversed_input.permute(0, 2, 1, 3, 4) # [batch, channel, depth(reversed), h, w]
+        reversed_input = reversed_input.cuda()
 
-        backward_step  = 0
+        start = 0
+        end = 48
+
+        backward_step = 0
         while end < reversed_input.shape[2]:
             x = reversed_input[:, :, start:end, :, :]  # x.shape: 1, 3, 48, h, w
             h = self.c3d(x)  # c3d forwarding => 1, 512, 3, 9, 9
             h = h.squeeze()
             h = h.view(1, 512, -1).permute(0, 2, 1)
-            h = temporal_pool(h).permute(0, 2, 1).squeeze()
+            h = self.temporal_pool(h).permute(0, 2, 1).squeeze()
 
             b_ht = (self.gru(h.cuda(), b_ht))
-            print("snippet:", backward_step, b_ht)
+            # print(f_ht.shape) # [128, 2]
+
+            b_argmax = torch.argmax(b_ht, dim=1).float().cuda() # classification
+            # print(f_argmax, f_argmax.shape) # [128]
+
+            snp_loss = self.loss(b_argmax, self.target)
+            # print("backwarding:", backward_step, snp_loss)
+            b_loss_list.append(snp_loss.data)
 
             start += 6
             end += 6
             backward_step += 1
 
-        return f_ht, b_ht
+        f_loss = sum(f_loss_list) / forward_step
+        b_loss = sum(b_loss_list) / backward_step
+        # print(f_loss, b_loss)
+
+        total_loss = (f_loss.item() + b_loss.item()) / 2
+
+        return torch.tensor(total_loss).float().cuda()
 
 if __name__ == '__main__':
     # load videos
     h_loader, r_loader = get_loader(h_video_path, r_video_path)
 
-    for idx, (frames, scores) in enumerate(r_loader):
-        #frames = frames.cuda()
+    for idx, frames in enumerate(r_loader):
+        frames = frames.cuda()
         #scores = scores.cuda()
         break
-
-    # plotVideo(frames)
-    #
-    # frames_cp = frames.clone()
-    # reversed_frames = torch.from_numpy(np.flip(frames_cp.numpy(), axis=1).copy())
-    #
-    # plotVideo(reversed_frames)
-
 
     # define C3D layer
     c3d = C3D()
@@ -141,7 +170,7 @@ if __name__ == '__main__':
     fc_removed = list(c3d.children())[:-6]
 
     _p3d_net = []
-    relu = nn.ReLU()
+    relu = nn.ReLU().cuda()
 
     for layer in fc_removed:
         for param in layer.parameters():
@@ -154,8 +183,8 @@ if __name__ == '__main__':
     c3d = nn.Sequential(*_p3d_net).cuda()  # new p3d net
 
     gru = GRU(c3d)
-    out = gru(frames)
-
-    print("forwarding:", out[0].item()) # tuple: length 128 for one video
-    print("backwarding:", out[1].item())  # tuple: length 128 for one video
+    outLoss = gru(frames, 'RV')
+    print(outLoss)
+    # print("forwarding:", f_out) # tuple: length 128 for one video
+    # print("backwarding:", b_out)  # tuple: length 128 for one video
 
