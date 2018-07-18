@@ -15,7 +15,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 h_video_path = 'C:/Users/young/Desktop/PROGRAPHY DATA_ver2/HV'
 r_video_path = 'C:/Users/young/Desktop/PROGRAPHY DATA_ver2/RV'
-weight_path = '../../weight/c3d.pickle'
+weight_path = '../../pretrained-weight/c3d.pickle'
 
 ##############################################################
 ######  source: https://github.com/DavideA/c3d-pytorch  ######
@@ -65,17 +65,18 @@ class GRU(nn.Module):
         self.gru = nn.GRUCell(243, 1).cuda()
 
     def forward(self, input):
+        input_cp = input.clone() # copy input tensor for backwarding GRU
+
         start = 0
         end = 48
+
         f_ht = torch.FloatTensor(128, 1).normal_().cuda() # (batch, hidden)
         b_ht = torch.FloatTensor(128, 1).normal_().cuda() # (batch, hidden)
-
-        input = input.permute(0, 2, 1, 3, 4) # [batch, channel, depth, height, width]
-        input_cp = input.clone()
-
         temporal_pool = nn.MaxPool1d(4, 4, 0)
 
         # forwarding once
+        input = input.permute(0, 2, 1, 3, 4)  # [batch, channel, depth, height, width]
+
         forward_step = 0
         while end < input.shape[2]:
             x = input[:, :, start:end, :, :] # x.shape: 1, 3, 48, h, w
@@ -94,8 +95,8 @@ class GRU(nn.Module):
         ##########################################################################
 
         # backwarding once
-        # reverse input depth(axis=2) sequence
-        reversed_input = np.flip(input_cp.numpy(), axis=2) # torch tensor to numpy
+        reversed_input = torch.from_numpy(np.flip(input_cp.numpy(), axis=1).copy()) # reverse input depth(axis=1) sequence
+        reversed_input = reversed_input.permute(0, 2, 1, 3, 4) # [batch, channel, depth(reversed), h, w]
 
         backward_step  = 0
         while end < reversed_input.shape[2]:
@@ -123,37 +124,38 @@ if __name__ == '__main__':
         #scores = scores.cuda()
         break
 
-    frames_cp = frames.clone()
-    reversed_frames = np.flip(frames_cp.numpy(), axis=1)
-    reversed_frames = torch.from_numpy(reversed_frames)
+    # plotVideo(frames)
+    #
+    # frames_cp = frames.clone()
+    # reversed_frames = torch.from_numpy(np.flip(frames_cp.numpy(), axis=1).copy())
+    #
+    # plotVideo(reversed_frames)
 
-    plotVideo(reversed_frames)
 
+    # define C3D layer
+    c3d = C3D()
+    c3d.load_state_dict(torch.load(weight_path))  # load pre-trained weight
+    c3d = c3d.cuda()
 
-  #   # define C3D layer
-  #   c3d = C3D()
-  #   c3d.load_state_dict(torch.load(weight_path))  # load pre-trained weight
-  #   c3d = c3d.cuda()
-  #
-  #   # remove c3d fc layers
-  #   fc_removed = list(c3d.children())[:-6]
-  #
-  #   _p3d_net = []
-  #   relu = nn.ReLU()
-  #
-  #   for layer in fc_removed:
-  #       for param in layer.parameters():
-  #           param.requires_grad = False  # no training
-  #       if layer.__class__.__name__ == 'MaxPool3d':
-  #           _p3d_net.extend([layer, relu])  # add activation function
-  #       else:
-  #           _p3d_net.append(layer)
-  #
-  #   c3d = nn.Sequential(*_p3d_net).cuda()  # new p3d net
-  #
-  #   gru = GRU(c3d)
-  #   out = gru(frames)
-  #
-  #   print(out) # tuple: length 128 for one video
-  #
-  #
+    # remove c3d fc layers
+    fc_removed = list(c3d.children())[:-6]
+
+    _p3d_net = []
+    relu = nn.ReLU()
+
+    for layer in fc_removed:
+        for param in layer.parameters():
+            param.requires_grad = False  # no training
+        if layer.__class__.__name__ == 'MaxPool3d':
+            _p3d_net.extend([layer, relu])  # add activation function
+        else:
+            _p3d_net.append(layer)
+
+    c3d = nn.Sequential(*_p3d_net).cuda()  # new p3d net
+
+    gru = GRU(c3d)
+    out = gru(frames)
+
+    print("forwarding:", out[0].item()) # tuple: length 128 for one video
+    print("backwarding:", out[1].item())  # tuple: length 128 for one video
+
