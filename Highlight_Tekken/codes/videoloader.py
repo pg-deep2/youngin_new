@@ -41,21 +41,21 @@ class HighlightDS(Dataset):
             frame = frame.permute(2, 0, 1) # (H, W, C) -> (C, H, W)
             framearr.append(frame)
 
-            if is_highlight == 'HV': # if highlight video
-                score = np.asarray([1])
-            else:
-                score = np.asarray([0])
-            scorearr.append(torch.from_numpy(score)) # numpy score -> torch tensor
+            # if is_highlight == 'HV': # if highlight video
+            #     score = np.asarray([1])
+            # else:
+            #     score = np.asarray([0])
+            # scorearr.append(torch.from_numpy(score)) # numpy score -> torch tensor
         vidcap.release()
 
         # list -> numpy array
         framearr = np.concatenate(framearr)
         framearr = framearr.reshape(-1, 3, 270, 480)
 
-        scorearr = np.concatenate(scorearr)
-        scorearr = scorearr.reshape(-1, 1)
+        # scorearr = np.concatenate(scorearr)
+        # scorearr = scorearr.reshape(-1, 1)
 
-        return self.transforms(framearr), scorearr
+        return self.transforms(framearr)
 
 # Row(unedited) Tekken video dataset
 class RowDS(Dataset):
@@ -87,28 +87,48 @@ class RowDS(Dataset):
             frame = frame.permute(2, 0, 1)  # (H, W, C) -> (C, H, W)
             framearr.append(frame)
 
-            if is_highlight == 'HV':  # if highlight video
-                score = np.asarray([1])
-            else:
-                score = np.asarray([0])
-            scorearr.append(torch.from_numpy(score))  # numpy score -> torch tensor
+            # if is_highlight == 'HV':  # if highlight video
+            #     score = np.asarray([1])
+            # else:
+            #     score = np.asarray([0])
+            # scorearr.append(torch.from_numpy(score))  # numpy score -> torch tensor
         vidcap.release()
 
         # list -> numpy array
         framearr = np.concatenate(framearr)
         framearr = framearr.reshape(-1, 3, 270, 480)
 
-        scorearr = np.concatenate(scorearr)
-        scorearr = scorearr.reshape(-1, 1)
+        # scorearr = np.concatenate(scorearr)
+        # scorearr = scorearr.reshape(-1, 1)
 
-        # Random sampling for Row videos
-        sp_len = random.randint(6, 10) # 6 <= len <= 10
-        sp_start = random.randint(0, len(framearr) - 120)
+        n_frames = framearr.shape[0] # num of total frames
 
-        framearr = framearr[sp_start:sp_start + sp_len * 12, :, :, :]
-        scorearr = scorearr[sp_start:sp_start + sp_len * 12, :]
+        # Random sampling for row videos
+        # 6sec <= length <= 10sec
+        if n_frames >= 10 * 12 :
+            snp_len = random.randint(6, 10) * 12 # num of snippet frames
+        elif n_frames > 6 * 12 :
+            snp_len = random.randint(6,n_frames//12) * 12
+        else:
+            raise IndexError("too short input video file")
 
-        return self.transforms(framearr), scorearr
+        snp_start = random.randint(0, n_frames - snp_len) # snippet's start frame index
+
+        framearr = framearr[snp_start : snp_start + snp_len, :, :, :]
+        # scorearr = scorearr[snp_start : snp_start + snp_len, :]
+
+        return self.transforms(framearr)
+
+# Test dataset
+class TestDS(Dataset):
+    def __init__(self, path, transform=None):
+        self.path = path
+        videofiles = os.listdir(path) # names of files in path directory
+
+        self.videofiles  = [os.path.join(self.path, fname) for fname in videofiles if os.path.splitext(fname)=='.mp4'] # video file path
+        self.textfiles =  [os.path.join(self.path, fname) for fname in videofiles if os.path.splitext(fname)=='.txt'] # highlight frame range txt file path
+
+
 
 # 멘토님 코드 참고!
 def video_transform(video, image_transform):
