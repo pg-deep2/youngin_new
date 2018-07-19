@@ -88,12 +88,12 @@ class GRU(nn.Module):
             fc2_out = self.fc2(fc1_out)
             sigmoid_out = self.sigmoid(fc2_out)
 
-            if sigmoid_out.item() >= 0.5: # assume it is highlight
-                snp_score = 1.
-            else:
-                snp_score = 0.
+            # if sigmoid_out.item() >= 0.5: # assume it is highlight
+            #     snp_score = 1.
+            # else:
+            #     snp_score = 0.
 
-            f_snp_score_list.append(snp_score)
+            f_snp_score_list.append(sigmoid_out.item())
             start += 6
             end += 6
             forward_step += 1
@@ -123,28 +123,30 @@ class GRU(nn.Module):
             fc2_out = self.fc2(fc1_out)
             sigmoid_out = self.sigmoid(fc2_out)
 
-            if sigmoid_out.item() >= 0.5:
-                snp_score = 1.
-            else:
-                snp_score = 0.
+            # if sigmoid_out.item() >= 0.5:
+            #     snp_score = 1.
+            # else:
+            #     snp_score = 0.
 
-            b_snp_score_list.append(snp_score)
+            b_snp_score_list.append(sigmoid_out.item())
             start += 6
             end += 6
             backward_step += 1
 
-        out_score_list = []
+        # print(f_snp_score_list)
+        # print(b_snp_score_list)
+        out_score_list = f_snp_score_list + b_snp_score_list
+        # print(out_score_list)
 
-        # forward / backward 한번이라도 highlight라고 매겨졌으면 해당 snippet은 highlight라고 간주? -> 이렇게 해도 되나...
-        # 그냥 forward backward score list 합해서 내보내는게 낫나..?
-        for f_score, b_score in zip(f_snp_score_list, b_snp_score_list):
-            if f_score == 0 and b_score == 0:
-                out_score_list.append(0.)
-            else:
-                out_score_list.append(1.)
-
-        out_score_list = np.asarray(out_score_list)
+        # # forward / backward 한번이라도 highlight라고 매겨졌으면 해당 snippet은 highlight라고 간주? -> 이렇게 해도 되나...
+        # # 그냥 forward backward score list 합해서 내보내는게 낫나..?
+        # for f_score, b_score in zip(f_snp_score_list, b_snp_score_list):
+        #     if f_score == 0 and b_score == 0:
+        #         out_score_list.append(0.)
+        #     else:
+        #         out_score_list.append(1.)
+        #
+        out_score_list = np.asarray(out_score_list, dtype=np.float)
         out_score_list = torch.from_numpy(out_score_list).cuda()
 
         return out_score_list
-
