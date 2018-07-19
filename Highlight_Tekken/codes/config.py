@@ -2,7 +2,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--dataroot', default='C:/Users/young/Desktop/PROGRAPHY DATA_ver2', help='path to dataset')
+parser.add_argument('--dataroot', default='../dataset', help='path to dataset')
 
 parser.add_argument('--n_epochs', type=int, default=10, help='number of epochs')
 parser.add_argument('--log_interval', type=int, default=100, help='save valid gif and image')

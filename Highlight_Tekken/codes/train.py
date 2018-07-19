@@ -78,6 +78,9 @@ class Trainer(object):
                                weight_decay=self.weight_decay)
 
         start_t = time.time()
+
+        # define loss function
+        criterion = nn.BCELoss()
         self.gru.train() # model: training mode
 
         for epoch in range(self.n_epochs):
@@ -90,7 +93,13 @@ class Trainer(object):
                 h_video = Variable(h_video.cuda())
 
                 self.gru.zero_grad()
-                h_loss = Variable(self.gru(h_video, 'HV').cuda(), requires_grad=True) # target: HV
+                #opt.zero_grad()
+
+                # forward
+                predicted = self.gru(h_video.cuda()) # predicted snippet's score
+                target = torch.from_numpy(np.ones([len(predicted)], dtype=np.float)).cuda() # highlight videos => target:1
+                h_loss = Variable(criterion(predicted, target), requires_grad=True) # compute loss
+
                 h_loss.backward()
                 opt.step()
 
@@ -98,23 +107,29 @@ class Trainer(object):
                 r_video = Variable(r_video.cuda())
 
                 self.gru.zero_grad()
-                r_loss = Variable(self.gru(r_video, 'RV').cuda(), requires_grad=True) # target: RV
+                #opt.zero_grad()
+
+                # forward
+                predicted = self.gru(r_video.cuda())  # predicted snippet's score
+                target = torch.from_numpy(np.zeros([len(predicted)], dtype=np.float)).cuda() # row videos => target:0
+                r_loss = Variable(criterion(predicted, target), requires_grad=True) # compute loss
+
                 r_loss.backward()
                 opt.step()
 
                 step_end_time = time.time()
 
                 # print logging
-                print('[%d/%d][%d/%d] - time: %.2f, h_loss: %.3f, r_loss: %.3f'
+                print('[%d/%d][%d/%d] - time: %.2f, h_loss: %.3f, r_loss: %.3f, total_loss: %.3f'
                       % (epoch + 1, self.n_epochs, step + 1, min(len(self.h_loader), len(self.r_loader)),
-                         step_end_time - start_t, h_loss, r_loss))
+                         step_end_time - start_t, h_loss, r_loss, h_loss + r_loss))
 
                 # validating for test dataset
                 # compute predicted score accuracy
                 if step % self.log_interval == 0:
-                    for step, t in enumerate(self.test_loader):
-                        t_video = t[0]
-                        t_label = t[1]
+                    # for step, t in enumerate(self.test_loader):
+                    #     t_video = t[0]
+                    #     t_label = t[1]
 
 
                     pass
@@ -149,4 +164,27 @@ if __name__ == "__main__":
 
     train = Trainer(config, h_loader, r_loader, test_loader)
     train.train()
+
+
+    """
+    [1/10][1/26] - time: 14.71, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][2/26] - time: 28.15, h_loss: -0.000, r_loss: 24.868, total_loss: 24.868
+[1/10][3/26] - time: 40.11, h_loss: 27.631, r_loss: 27.631, total_loss: 55.262
+[1/10][4/26] - time: 48.74, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][5/26] - time: 55.60, h_loss: 20.723, r_loss: 20.723, total_loss: 41.447
+[1/10][6/26] - time: 64.12, h_loss: 9.210, r_loss: 27.631, total_loss: 36.841
+[1/10][7/26] - time: 74.86, h_loss: 27.631, r_loss: 27.631, total_loss: 55.262
+[1/10][8/26] - time: 86.69, h_loss: 24.561, r_loss: 27.631, total_loss: 52.192
+[1/10][9/26] - time: 99.67, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][10/26] - time: 110.49, h_loss: 13.816, r_loss: 27.631, total_loss: 41.447
+[1/10][11/26] - time: 123.14, h_loss: 1.727, r_loss: 27.631, total_loss: 29.358
+[1/10][12/26] - time: 137.44, h_loss: 10.048, r_loss: 8.289, total_loss: 18.337
+[1/10][13/26] - time: 151.24, h_loss: 5.526, r_loss: 27.631, total_loss: 33.157
+[1/10][14/26] - time: 161.74, h_loss: 19.342, r_loss: -0.000, total_loss: 19.342
+[1/10][15/26] - time: 174.55, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][16/26] - time: 186.88, h_loss: -0.000, r_loss: 10.362, total_loss: 10.362
+[1/10][17/26] - time: 202.98, h_loss: 27.631, r_loss: 27.631, total_loss: 55.262
+[1/10][18/26] - time: 211.62, h_loss: -0.000, r_loss: 2.763, total_loss: 2.763
+    
+    """
 
