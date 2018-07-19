@@ -2,7 +2,7 @@ import os, time, glob
 from itertools import chain
 
 import numpy as np
-
+import sys
 import itertools, time, os
 import torch
 from torch import nn
@@ -13,8 +13,7 @@ import random
 import torch.backends.cudnn as cudnn
 
 from models.bidirectional import C3D, GRU
-from config import get_config
-from videoloader import get_loader
+from vis_tool import Visualizer
 
 def denorm(x):
     out = (x+1)/2
@@ -43,6 +42,9 @@ class Trainer(object):
 
         # build c3d -> GRU model
         self.build_model()
+
+        # visualizing tool
+        self.vis = Visualizer()
 
     def build_model(self):
         self.p3d = C3D().cuda() # feature extraction c3d
@@ -84,51 +86,72 @@ class Trainer(object):
 
         for epoch in range(self.n_epochs):
             # common_len = min(len(self.h_loader),len(self.r_loader))
-            for step, (h, r) in enumerate(zip(self.h_loader, self.r_loader)):
-                h_video = h
-                r_video = r
+            try:
+                for step, (h, r) in enumerate(zip(self.h_loader, self.r_loader)):
+                    h_video = h
+                    r_video = r
 
-                # for highlight video
-                h_video = Variable(h_video.cuda())
-                self.gru.zero_grad()
+                    # for highlight video
+                    h_video = Variable(h_video.cuda())
+                    self.gru.zero_grad()
 
-                # forward
-                predicted = self.gru(h_video.cuda()) # predicted snippet's score
-                target = torch.from_numpy(np.ones([len(predicted)], dtype=np.float)).cuda() # highlight videos => target:1
-                h_loss = Variable(criterion(predicted, target), requires_grad=True) # compute loss
+                    # forward
+                    predicted = self.gru(h_video.cuda())  # predicted snippet's score
+                    target = torch.from_numpy(
+                        np.ones([len(predicted)], dtype=np.float)).cuda()  # highlight videos => target:1
+                    h_loss = Variable(criterion(predicted, target), requires_grad=True)  # compute loss
 
-                h_loss.backward()
-                opt.step()
+                    h_loss.backward()
+                    opt.step()
 
-                # for raw video
-                r_video = Variable(r_video.cuda())
-                self.gru.zero_grad()
+                    # for raw video
+                    r_video = Variable(r_video.cuda())
+                    self.gru.zero_grad()
 
-                # forward
-                predicted = self.gru(r_video.cuda())  # predicted snippet's score
-                target = torch.from_numpy(np.zeros([len(predicted)], dtype=np.float)).cuda() # row videos => target:0
-                r_loss = Variable(criterion(predicted, target), requires_grad=True) # compute loss
+                    # forward
+                    predicted = self.gru(r_video.cuda())  # predicted snippet's score
+                    target = torch.from_numpy(
+                        np.zeros([len(predicted)], dtype=np.float)).cuda()  # row videos => target:0
+                    r_loss = Variable(criterion(predicted, target), requires_grad=True)  # compute loss
 
-                r_loss.backward()
-                opt.step()
+                    r_loss.backward()
+                    opt.step()
 
-                step_end_time = time.time()
+                    step_end_time = time.time()
 
-                # print logging
-                print('[%d/%d][%d/%d] - time: %.2f, h_loss: %.3f, r_loss: %.3f, total_loss: %.3f'
-                      % (epoch + 1, self.n_epochs, step + 1, min(len(self.h_loader), len(self.r_loader)),
-                         step_end_time - start_t, h_loss, r_loss, h_loss + r_loss))
+                    total_loss = h_loss + r_loss
+                    # print logging
+                    print('[%d/%d][%d/%d] - time: %.2f, h_loss: %.3f, r_loss: %.3f, total_loss: %.3f'
+                          % (epoch + 1, self.n_epochs, step + 1, min(len(self.h_loader), len(self.r_loader)),
+                             step_end_time - start_t, h_loss, r_loss, total_loss))
+                    self.vis.plot('Loss', (total_loss.data).cpu().numpy())
 
-                # validating for test dataset
-                # compute predicted score accuracy
-                if step % self.log_interval == 0:
-                    # for step, t in enumerate(self.test_loader):
-                    #     t_video = t[0]
-                    #     t_label = t[1]
+                    # validating for test dataset
+                    # compute predicted score accuracy
+                    if step % self.log_interval == 0:
+                        # for step, t in enumerate(self.test_loader):
+                        #     t_video = t[0]
+                        #     t_label = t[1]
+                        pass
 
+            # keyboard interrupt routine => save checkpoint file & hyper parameters
+            except KeyboardInterrupt:
+                print('Keyboard Interrupt!')
+                checkpoint_filename = input('Enter checkpoint filaname:')
+                torch.save(self.gru.state_dict(),
+                            '../checkpoints/exception/' + checkpoint_filename + '.pth')  # save checkpoint
 
-                    pass
+                # save hyperparameters
+                hyperparameter_filename = input('Enter hyper parameter filename:')
+                with open('../checkpoints/exception/' + hyperparameter_filename + '.txt', 'w') as f:
+                    f.writelines("learning rate: %.6f\n" % self.lr)
+                    f.writelines("beta1, beta2: %.3f, %.3f\n" % (self.beta1, self.beta2))
+                    f.writelines("weight decay rate: %.3f\n" % self.weight_decay)
+                    f.writelines("current state: epoch [%d/%d] step [%d/%d]\n" % (
+                    epoch + 1, self.n_epochs, step + 1, min(len(self.h_loader), len(self.r_loader))))
+                sys.exit(0)
 
+            # save checkpoints
             if epoch % self.checkpoint_step == 0:
                 torch.save(self.gru.state_dict(), '../checkpoints/epoch' + str(epoch) + '.pth')
                 print("checkpoint saved!")
