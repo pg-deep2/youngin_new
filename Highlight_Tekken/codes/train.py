@@ -132,35 +132,3 @@ class Trainer(object):
             if epoch % self.checkpoint_step == 0:
                 torch.save(self.gru.state_dict(), '../checkpoints/epoch' + str(epoch) + '.pth')
                 print("checkpoint saved!")
-
-"""
-한 Epoch 돌려본 결과 =>
-[1/10][1/25] - time: 20.92, h_loss: -0.000, r_loss: -0.000, total_loss: -0.000
-[1/10][2/25] - time: 32.44, h_loss: 5.526, r_loss: 27.631, total_loss: 33.157
-[1/10][3/25] - time: 40.58, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][4/25] - time: 48.98, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][5/25] - time: 63.64, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][6/25] - time: 72.37, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][7/25] - time: 84.23, h_loss: 5.024, r_loss: 27.631, total_loss: 32.655
-[1/10][8/25] - time: 94.42, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][9/25] - time: 106.58, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][10/25] - time: 118.88, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][11/25] - time: 128.95, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][12/25] - time: 137.09, h_loss: -0.000, r_loss: -0.000, total_loss: -0.000
-[1/10][13/25] - time: 150.08, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][14/25] - time: 160.26, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][15/25] - time: 178.51, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][16/25] - time: 189.98, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][17/25] - time: 198.04, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][18/25] - time: 213.45, h_loss: -0.000, r_loss: 20.723, total_loss: 20.723
-[1/10][19/25] - time: 225.20, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][20/25] - time: 238.89, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][21/25] - time: 249.47, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][22/25] - time: 264.77, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][23/25] - time: 278.96, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][24/25] - time: 290.43, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][25/25] - time: 306.33, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-
-==> model.py에서 forwarding/ backwarding 한번이라도 snippet score이 1로 측정되면 전부 highlight라고 간주하게 했는데
-그래서 row video에게 너무 각박한가...? 어려워요,,
-"""
