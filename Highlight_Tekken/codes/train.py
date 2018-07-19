@@ -21,11 +21,12 @@ def denorm(x):
     return out.clamp(0, 1)
 
 class Trainer(object):
-    def __init__(self, config, h_loader, r_loader):
+    def __init__(self, config, h_loader, r_loader, test_loader):
         self.config = config
 
         self.h_loader = h_loader
         self.r_loader = r_loader
+        self.test_loader = test_loader
 
         # hyper parameters for training
         self.lr = config.lr
@@ -108,12 +109,14 @@ class Trainer(object):
                       % (epoch + 1, self.n_epochs, step + 1, min(len(self.h_loader), len(self.r_loader)),
                          step_end_time - start_t, h_loss, r_loss))
 
-                if step % self.log_interval == 0: # validating for test dataset
-                    # for step, t in enumerate(self.test_loader):
-                    #     t_video = t[0]
-                    #     t_label = t[1]
-                    #
-                    #
+                # validating for test dataset
+                # compute predicted score accuracy
+                if step % self.log_interval == 0:
+                    for step, t in enumerate(self.test_loader):
+                        t_video = t[0]
+                        t_label = t[1]
+
+
                     pass
 
             if epoch % self.checkpoint_step == 0:
@@ -139,11 +142,11 @@ if __name__ == "__main__":
     dataroot = config.dataroot
     h_datapath = os.path.join(dataroot, "HV")
     r_datapath = os.path.join(dataroot, "RV")
-    #t_datapath = os.path.join(dataroot, 'testRV')
+    t_datapath = os.path.join(dataroot, 'testRV')
 
     # dataroot, cache, image_size, n_channels, image_batch, video_batch, video_length):
-    h_loader, r_loader = get_loader(h_datapath, r_datapath)
+    h_loader, r_loader, test_loader = get_loader(h_datapath, r_datapath, t_datapath)
 
-    train = Trainer(config, h_loader, r_loader)
+    train = Trainer(config, h_loader, r_loader, test_loader)
     train.train()
 

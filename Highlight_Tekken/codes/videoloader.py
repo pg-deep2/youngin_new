@@ -11,6 +11,8 @@ import functools
 # Device configuration
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
+dataset_root = 'C:/Users/young/Desktop/PROGRAPHY DATA_ver2'
+
 # Highlight Tekken video dataset
 class HighlightDS(Dataset):
     def __init__(self, path, transform=None):
@@ -27,9 +29,9 @@ class HighlightDS(Dataset):
         vidcap = cv2.VideoCapture(filename)
 
         framearr = []
-        scorearr = []
-
-        is_highlight = filename.split("/")[-2] # HV or RV
+        # scorearr = []
+        #
+        # is_highlight = filename.split("/")[-2] # HV or RV
 
         while (vidcap.isOpened()):
             ret, frame = vidcap.read()
@@ -73,9 +75,9 @@ class RowDS(Dataset):
         vidcap = cv2.VideoCapture(filename)
 
         framearr = []
-        scorearr = []
-
-        is_highlight = filename.split("/")[-2]  # HV or RV
+        # scorearr = []
+        #
+        # is_highlight = filename.split("/")[-2]  # HV or RV
 
         while (vidcap.isOpened()):
             ret, frame = vidcap.read()
@@ -120,14 +122,57 @@ class RowDS(Dataset):
         return self.transforms(framearr)
 
 # Test dataset
+# 멘토님 코드 참고
 class TestDS(Dataset):
     def __init__(self, path, transform=None):
         self.path = path
-        videofiles = os.listdir(path) # names of files in path directory
+        files = os.listdir(path)  # names of files in path directory
+        self.files = [os.path.join(self.path, fname) for fname in files]  # abs path
+        self.transforms = transform if transform is not None else lambda x: x
 
-        self.videofiles  = [os.path.join(self.path, fname) for fname in videofiles if os.path.splitext(fname)=='.mp4'] # video file path
-        self.textfiles =  [os.path.join(self.path, fname) for fname in videofiles if os.path.splitext(fname)=='.txt'] # highlight frame range txt file path
+    def __getitem__(self, idx):
+        filename = self.files[idx]
+        print(filename)
+        vidcap = cv2.VideoCapture(filename)
+        framearr = []
 
+        # set highlight frames
+        videoname = os.path.split(self.files[idx])[-1]
+        highlight_start = videoname.index('(')
+        highlight_end = videoname.index(')')
+        highlight_range = videoname[highlight_start + 1: highlight_end]  # highlight frames range
+
+        while (vidcap.isOpened()):
+            ret, frame = vidcap.read()
+
+            if (frame is None):  # end of video frames
+                break
+
+            frame = torch.from_numpy(np.asarray(frame))  # image -> numpy array -> torch tensor
+            frame = frame.permute(2, 0, 1)  # (H, W, C) -> (C, H, W)
+            framearr.append(frame)
+
+            # if is_highlight == 'HV':  # if highlight video
+            #     score = np.asarray([1])
+            # else:
+            #     score = np.asarray([0])
+            # scorearr.append(torch.from_numpy(score))  # numpy score -> torch tensor
+        vidcap.release()
+
+        # list -> numpy array
+        framearr = np.concatenate(framearr)
+        framearr = framearr.reshape(-1, 3, 270, 480)
+
+        # score setting for testing
+        label = np.zeros(framearr.shape[0])  # highlight label for each frames
+        if ',' in highlight_range:
+            start, end = highlight_range.split(',')
+            label[int(start) : int(end)] = 1.
+
+        return self.transforms(framearr), label
+
+    def __len__(self):
+        return len(self.files)
 
 
 # 멘토님 코드 참고!
@@ -141,7 +186,7 @@ def video_transform(video, image_transform):
     return vid
 
 # 멘토님 코드 참고!
-def get_loader(h_path, r_path):
+def get_loader(h_path, r_path, test_path):
     image_transforms = transforms.Compose([
         Image.fromarray,
         transforms.CenterCrop(256),
@@ -154,11 +199,13 @@ def get_loader(h_path, r_path):
     # define videos dataset
     hDS = HighlightDS(h_path, video_transforms)
     rDS = RowDS(r_path, video_transforms)
+    testDS = TestDS(test_path, video_transforms)
 
     h_loader = DataLoader(hDS, batch_size=1, drop_last=True, shuffle=True)
     r_loader = DataLoader(rDS, batch_size=1, drop_last=True, shuffle=True)
+    test_loader = DataLoader(testDS, batch_size=1, drop_last=True, shuffle=False)
 
-    return h_loader, r_loader
+    return h_loader, r_loader, test_loader
 
 # plot video frames
 def plotVideo(framearr):
@@ -172,10 +219,24 @@ def plotVideo(framearr):
 
 if __name__ == "__main__":
     # get dataloaders
-    h_loader, r_loader = get_loader('../dataset/HV',
-                                    '../dataset/RV')
+    h_loader, r_loader, test_loader = get_loader(dataset_root + '/HV',
+                                                dataset_root + '/RV',
+                                                dataset_root + '/testRV')
 
-    # testing
-    for idx, (frames, scores) in enumerate(h_loader):
-        plotVideo(frames)
-        break
+
+    # # Highlight loader test
+    # for idx, frames in enumerate(h_loader):
+    #     plotVideo(frames)
+    #     break
+    #
+    # # Row video loader test
+    # for idx, frames in enumerate(r_loader):
+    #     plotVideo(frames)
+    #     break
+
+    # # TestLoader test
+    # for idx, (frames, label) in enumerate(test_loader):
+    #     print(idx)
+    #     plotVideo(frames)
+    #     print(label)
+    #     break

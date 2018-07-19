@@ -63,7 +63,10 @@ class GRU(nn.Module):
 
         self.c3d = c3d
         self.temporal_pool = nn.MaxPool1d(4, 4, 0).cuda()
-        self.gru = nn.GRUCell(243, 2).cuda()
+        self.gru = nn.GRUCell(243, 10).cuda()
+        self.fc1 = nn.Linear(128*10, 10).cuda()
+        self.fc2 = nn.Linear(10, 1).cuda()
+        self.sigmoid = nn.Sigmoid()
 
         self.loss = nn.MSELoss() # loss for classification highlight/row
 
@@ -72,7 +75,7 @@ class GRU(nn.Module):
 
         if true_label == 'HV': # if input video is highlight clip
             self.target = np.ones([128])
-        else: # if input video is row video
+        elif true_label == 'RV': # if input video is row video
             self.target = np.zeros([128])
 
         self.target = torch.from_numpy(self.target).float().cuda()
@@ -80,8 +83,8 @@ class GRU(nn.Module):
         start = 0
         end = 48
 
-        f_ht = torch.FloatTensor(128, 2).normal_().cuda() # (batch, hidden)
-        b_ht = torch.FloatTensor(128, 2).normal_().cuda() # (batch, hidden)
+        f_ht = torch.FloatTensor(128, 10).normal_().cuda() # (batch, hidden)
+        b_ht = torch.FloatTensor(128, 10).normal_().cuda() # (batch, hidden)
 
         f_loss_list = []
         b_loss_list = []
@@ -98,10 +101,23 @@ class GRU(nn.Module):
             h = self.temporal_pool(h).permute(0, 2, 1).squeeze()
 
             f_ht = (self.gru(h.cuda(), f_ht))
-            # print(f_ht.shape) # [128, 2]
+            # print(f_ht.shape) # [128, 10]
 
-            f_argmax = torch.argmax(f_ht, dim=1).float().cuda() # classification
-            # print(f_argmax, f_argmax.shape) # [128]
+            # f_argmax = torch.argmax(f_ht, dim=1).float().cuda() # classification
+            # # print(f_argmax, f_argmax.shape) # [128]
+
+            f_ht_flatten = f_ht.view(1, -1) # [1, 128*10]
+            print(f_ht_flatten, f_ht_flatten.shape)
+
+            fc1_out = self.fc1(f_ht_flatten)
+            print(fc1_out, fc1_out.shape)
+
+            fc2_out = self.fc2(f_ht_flatten)
+            print(fc2_out, fc2_out.shape)
+
+            sigmoid_out = self.sigmoid(fc2_out)
+            print(sigmoid_out, sigmoid_out.shape)
+
 
             snp_loss = self.loss(f_argmax, self.target)
             # print("forwarding: ", forward_step, snp_loss)
