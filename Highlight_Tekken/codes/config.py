@@ -6,7 +6,7 @@ parser.add_argument('--dataroot', default='../dataset', help='path to dataset')
 
 parser.add_argument('--n_epochs', type=int, default=10, help='number of epochs')
 parser.add_argument('--log_interval', type=int, default=100, help='save valid gif and image')
-parser.add_argument('--checkpoint_step', type=int, default=10, help='save checkpoint')
+parser.add_argument('--checkpoint_step', type=int, default=1, help='save checkpoint')
 
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
 

@@ -79,8 +79,7 @@ class Trainer(object):
 
         start_t = time.time()
 
-        # define loss function
-        criterion = nn.BCELoss()
+        criterion = nn.BCELoss() # define loss function
         self.gru.train() # model: training mode
 
         for epoch in range(self.n_epochs):
@@ -91,9 +90,7 @@ class Trainer(object):
 
                 # for highlight video
                 h_video = Variable(h_video.cuda())
-
                 self.gru.zero_grad()
-                #opt.zero_grad()
 
                 # forward
                 predicted = self.gru(h_video.cuda()) # predicted snippet's score
@@ -105,9 +102,7 @@ class Trainer(object):
 
                 # for raw video
                 r_video = Variable(r_video.cuda())
-
                 self.gru.zero_grad()
-                #opt.zero_grad()
 
                 # forward
                 predicted = self.gru(r_video.cuda())  # predicted snippet's score
@@ -135,56 +130,37 @@ class Trainer(object):
                     pass
 
             if epoch % self.checkpoint_step == 0:
-                self.gru.save_state_dict('../checkpoints/ckpt' + str(epoch) + '.pt') # save model checkpoint
+                torch.save(self.gru.state_dict(), '../checkpoints/epoch' + str(epoch) + '.pth')
+                print("checkpoint saved!")
 
-if __name__ == "__main__":
-    config = get_config()
+"""
+한 Epoch 돌려본 결과 =>
+[1/10][1/25] - time: 20.92, h_loss: -0.000, r_loss: -0.000, total_loss: -0.000
+[1/10][2/25] - time: 32.44, h_loss: 5.526, r_loss: 27.631, total_loss: 33.157
+[1/10][3/25] - time: 40.58, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][4/25] - time: 48.98, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][5/25] - time: 63.64, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][6/25] - time: 72.37, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][7/25] - time: 84.23, h_loss: 5.024, r_loss: 27.631, total_loss: 32.655
+[1/10][8/25] - time: 94.42, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][9/25] - time: 106.58, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][10/25] - time: 118.88, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][11/25] - time: 128.95, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][12/25] - time: 137.09, h_loss: -0.000, r_loss: -0.000, total_loss: -0.000
+[1/10][13/25] - time: 150.08, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][14/25] - time: 160.26, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][15/25] - time: 178.51, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][16/25] - time: 189.98, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][17/25] - time: 198.04, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][18/25] - time: 213.45, h_loss: -0.000, r_loss: 20.723, total_loss: 20.723
+[1/10][19/25] - time: 225.20, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][20/25] - time: 238.89, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][21/25] - time: 249.47, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][22/25] - time: 264.77, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][23/25] - time: 278.96, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][24/25] - time: 290.43, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
+[1/10][25/25] - time: 306.33, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
 
-    if config.outf is None:
-        config.outf = 'samples'
-    os.system('mkdir {0}'.format(config.outf))
-
-    config.manual_seed = random.randint(1, 10000)
-    print("Random Seed: ", config.manual_seed)
-    random.seed(config.manual_seed)
-    torch.manual_seed(config.manual_seed)
-
-    if config.cuda:
-        torch.cuda.manual_seed_all(config.manual_seed)
-
-    cudnn.benchmark = True
-
-    dataroot = config.dataroot
-    h_datapath = os.path.join(dataroot, "HV")
-    r_datapath = os.path.join(dataroot, "RV")
-    t_datapath = os.path.join(dataroot, 'testRV')
-
-    # dataroot, cache, image_size, n_channels, image_batch, video_batch, video_length):
-    h_loader, r_loader, test_loader = get_loader(h_datapath, r_datapath, t_datapath)
-
-    train = Trainer(config, h_loader, r_loader, test_loader)
-    train.train()
-
-
-    """
-    [1/10][1/26] - time: 14.71, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][2/26] - time: 28.15, h_loss: -0.000, r_loss: 24.868, total_loss: 24.868
-[1/10][3/26] - time: 40.11, h_loss: 27.631, r_loss: 27.631, total_loss: 55.262
-[1/10][4/26] - time: 48.74, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][5/26] - time: 55.60, h_loss: 20.723, r_loss: 20.723, total_loss: 41.447
-[1/10][6/26] - time: 64.12, h_loss: 9.210, r_loss: 27.631, total_loss: 36.841
-[1/10][7/26] - time: 74.86, h_loss: 27.631, r_loss: 27.631, total_loss: 55.262
-[1/10][8/26] - time: 86.69, h_loss: 24.561, r_loss: 27.631, total_loss: 52.192
-[1/10][9/26] - time: 99.67, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][10/26] - time: 110.49, h_loss: 13.816, r_loss: 27.631, total_loss: 41.447
-[1/10][11/26] - time: 123.14, h_loss: 1.727, r_loss: 27.631, total_loss: 29.358
-[1/10][12/26] - time: 137.44, h_loss: 10.048, r_loss: 8.289, total_loss: 18.337
-[1/10][13/26] - time: 151.24, h_loss: 5.526, r_loss: 27.631, total_loss: 33.157
-[1/10][14/26] - time: 161.74, h_loss: 19.342, r_loss: -0.000, total_loss: 19.342
-[1/10][15/26] - time: 174.55, h_loss: -0.000, r_loss: 27.631, total_loss: 27.631
-[1/10][16/26] - time: 186.88, h_loss: -0.000, r_loss: 10.362, total_loss: 10.362
-[1/10][17/26] - time: 202.98, h_loss: 27.631, r_loss: 27.631, total_loss: 55.262
-[1/10][18/26] - time: 211.62, h_loss: -0.000, r_loss: 2.763, total_loss: 2.763
-    
-    """
-
+==> model.py에서 forwarding/ backwarding 한번이라도 snippet score이 1로 측정되면 전부 highlight라고 간주하게 했는데
+그래서 row video에게 너무 각박한가...? 어려워요,,
+"""

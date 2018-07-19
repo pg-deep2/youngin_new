@@ -11,7 +11,7 @@ import functools
 # Device configuration
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-dataset_root = 'C:/Users/young/Desktop/PROGRAPHY DATA_ver2'
+dataset_root = '../dataset'
 
 # Highlight Tekken video dataset
 class HighlightDS(Dataset):
@@ -29,9 +29,6 @@ class HighlightDS(Dataset):
         vidcap = cv2.VideoCapture(filename)
 
         framearr = []
-        # scorearr = []
-        #
-        # is_highlight = filename.split("/")[-2] # HV or RV
 
         while (vidcap.isOpened()):
             ret, frame = vidcap.read()
@@ -42,20 +39,11 @@ class HighlightDS(Dataset):
             frame = torch.from_numpy(np.asarray(frame)) # image -> numpy array -> torch tensor
             frame = frame.permute(2, 0, 1) # (H, W, C) -> (C, H, W)
             framearr.append(frame)
-
-            # if is_highlight == 'HV': # if highlight video
-            #     score = np.asarray([1])
-            # else:
-            #     score = np.asarray([0])
-            # scorearr.append(torch.from_numpy(score)) # numpy score -> torch tensor
         vidcap.release()
 
         # list -> numpy array
         framearr = np.concatenate(framearr)
         framearr = framearr.reshape(-1, 3, 270, 480)
-
-        # scorearr = np.concatenate(scorearr)
-        # scorearr = scorearr.reshape(-1, 1)
 
         return self.transforms(framearr)
 
@@ -75,9 +63,6 @@ class RowDS(Dataset):
         vidcap = cv2.VideoCapture(filename)
 
         framearr = []
-        # scorearr = []
-        #
-        # is_highlight = filename.split("/")[-2]  # HV or RV
 
         while (vidcap.isOpened()):
             ret, frame = vidcap.read()
@@ -88,20 +73,11 @@ class RowDS(Dataset):
             frame = torch.from_numpy(np.asarray(frame))  # image -> numpy array -> torch tensor
             frame = frame.permute(2, 0, 1)  # (H, W, C) -> (C, H, W)
             framearr.append(frame)
-
-            # if is_highlight == 'HV':  # if highlight video
-            #     score = np.asarray([1])
-            # else:
-            #     score = np.asarray([0])
-            # scorearr.append(torch.from_numpy(score))  # numpy score -> torch tensor
         vidcap.release()
 
         # list -> numpy array
         framearr = np.concatenate(framearr)
         framearr = framearr.reshape(-1, 3, 270, 480)
-
-        # scorearr = np.concatenate(scorearr)
-        # scorearr = scorearr.reshape(-1, 1)
 
         n_frames = framearr.shape[0] # num of total frames
 
@@ -115,9 +91,7 @@ class RowDS(Dataset):
             raise IndexError("too short input video file")
 
         snp_start = random.randint(0, n_frames - snp_len) # snippet's start frame index
-
         framearr = framearr[snp_start : snp_start + snp_len, :, :, :]
-        # scorearr = scorearr[snp_start : snp_start + snp_len, :]
 
         return self.transforms(framearr)
 
@@ -151,12 +125,6 @@ class TestDS(Dataset):
             frame = torch.from_numpy(np.asarray(frame))  # image -> numpy array -> torch tensor
             frame = frame.permute(2, 0, 1)  # (H, W, C) -> (C, H, W)
             framearr.append(frame)
-
-            # if is_highlight == 'HV':  # if highlight video
-            #     score = np.asarray([1])
-            # else:
-            #     score = np.asarray([0])
-            # scorearr.append(torch.from_numpy(score))  # numpy score -> torch tensor
         vidcap.release()
 
         # list -> numpy array
@@ -217,26 +185,12 @@ def plotVideo(framearr):
         cv2.imshow('frame #' + str(fnum), f)
         cv2.waitKey(12)
 
-if __name__ == "__main__":
-    # get dataloaders
-    h_loader, r_loader, test_loader = get_loader(dataset_root + '/HV',
-                                                dataset_root + '/RV',
-                                                dataset_root + '/testRV')
-
-
-    # # Highlight loader test
-    # for idx, frames in enumerate(h_loader):
-    #     plotVideo(frames)
-    #     break
-    #
-    # # Row video loader test
-    # for idx, frames in enumerate(r_loader):
-    #     plotVideo(frames)
-    #     break
-
-    # # TestLoader test
-    # for idx, (frames, label) in enumerate(test_loader):
-    #     print(idx)
-    #     plotVideo(frames)
-    #     print(label)
-    #     break
+# if __name__ == "__main__":
+#     # get dataloaders
+#     h_loader, r_loader, test_loader = get_loader(dataset_root + '/HV',
+#                                                 dataset_root + '/RV',
+#                                                 dataset_root + '/testRV')
+#
+#     count=0
+#     for idx, frame in enumerate(r_loader):
+#         count += 1
