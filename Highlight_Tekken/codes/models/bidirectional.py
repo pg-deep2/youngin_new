@@ -15,6 +15,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 h_video_path = '../../dataset/HV'
 r_video_path = '../../dataset/RV'
+test_video_path = '../../dataset/testRV'
 weight_path = '../../weight/c3d.pickle'
 
 ##############################################################
@@ -66,19 +67,19 @@ class GRU(nn.Module):
         self.gru = nn.GRUCell(243, 10).cuda()
         self.fc1 = nn.Linear(128*10, 10).cuda()
         self.fc2 = nn.Linear(10, 1).cuda()
-        self.sigmoid = nn.Sigmoid()
+        self.sigmoid = nn.Sigmoid().cuda()
 
-        self.loss = nn.MSELoss() # loss for classification highlight/row
+        #self.loss = nn.MSELoss() # loss for classification highlight/row
 
-    def forward(self, input, true_label):
+    def forward(self, input):
         input_cp = input.clone() # copy input tensor for backwarding GRU
 
-        if true_label == 'HV': # if input video is highlight clip
-            self.target = np.ones([128])
-        elif true_label == 'RV': # if input video is row video
-            self.target = np.zeros([128])
-
-        self.target = torch.from_numpy(self.target).float().cuda()
+        # if true_label == 'HV': # if input video is highlight clip
+        #     self.target = np.ones([128])
+        # elif true_label == 'RV': # if input video is row video
+        #     self.target = np.zeros([128])
+        #
+        # self.target = torch.from_numpy(self.target).float().cuda()
 
         start = 0
         end = 48
@@ -86,8 +87,8 @@ class GRU(nn.Module):
         f_ht = torch.FloatTensor(128, 10).normal_().cuda() # (batch, hidden)
         b_ht = torch.FloatTensor(128, 10).normal_().cuda() # (batch, hidden)
 
-        f_loss_list = []
-        b_loss_list = []
+        f_snp_score_list = []
+        b_snp_score_list = []
 
         # forwarding once
         input = input.permute(0, 2, 1, 3, 4)  # [batch, channel, depth, height, width]
@@ -100,28 +101,34 @@ class GRU(nn.Module):
             h = h.view(1, 512, -1).permute(0, 2, 1)
             h = self.temporal_pool(h).permute(0, 2, 1).squeeze()
 
-            f_ht = (self.gru(h.cuda(), f_ht))
-            # print(f_ht.shape) # [128, 10]
+            f_ht = (self.gru(h.cuda(), f_ht)) # [128, 10]
 
             # f_argmax = torch.argmax(f_ht, dim=1).float().cuda() # classification
             # # print(f_argmax, f_argmax.shape) # [128]
 
-            f_ht_flatten = f_ht.view(1, -1) # [1, 128*10]
-            print(f_ht_flatten, f_ht_flatten.shape)
+            f_ht_flatten = f_ht.view(1, -1) # [1, 128*10] # flatten to
+            #print(forward_step, f_ht_flatten, f_ht_flatten.shape)
 
             fc1_out = self.fc1(f_ht_flatten)
-            print(fc1_out, fc1_out.shape)
+            #print(forward_step, fc1_out, fc1_out.shape)
 
-            fc2_out = self.fc2(f_ht_flatten)
-            print(fc2_out, fc2_out.shape)
+            fc2_out = self.fc2(fc1_out)
+            #print(forward_step, fc2_out, fc2_out.shape)
 
             sigmoid_out = self.sigmoid(fc2_out)
-            print(sigmoid_out, sigmoid_out.shape)
+            #print(forward_step, sigmoid_out, sigmoid_out.shape)
+
+            if sigmoid_out.item() >= 0.5: # assume it is highlight
+                snp_score = 1.
+            else:
+                snp_score = 0.
+
+            f_snp_score_list.append(snp_score)
 
 
-            snp_loss = self.loss(f_argmax, self.target)
+            #snp_loss = self.loss(f_argmax, self.target)
             # print("forwarding: ", forward_step, snp_loss)
-            f_loss_list.append(snp_loss.data)
+            # f_loss_list.append(snp_loss.data)
 
             start += 6
             end += 6
@@ -149,28 +156,63 @@ class GRU(nn.Module):
             b_ht = (self.gru(h.cuda(), b_ht))
             # print(f_ht.shape) # [128, 2]
 
-            b_argmax = torch.argmax(b_ht, dim=1).float().cuda() # classification
-            # print(f_argmax, f_argmax.shape) # [128]
+            b_ht_flatten = b_ht.view(1, -1)  # [1, 128*10] # flatten to
+            # print(forward_step, f_ht_flatten, f_ht_flatten.shape)
 
-            snp_loss = self.loss(b_argmax, self.target)
-            # print("backwarding:", backward_step, snp_loss)
-            b_loss_list.append(snp_loss.data)
+            fc1_out = self.fc1(b_ht_flatten)
+            # print(forward_step, fc1_out, fc1_out.shape)
+
+            fc2_out = self.fc2(fc1_out)
+            # print(forward_step, fc2_out, fc2_out.shape)
+
+            sigmoid_out = self.sigmoid(fc2_out)
+            #print(backward_step, sigmoid_out, sigmoid_out.shape)
+
+            if sigmoid_out.item() >= 0.5:
+                snp_score = 1.
+            else:
+                snp_score = 0.
+
+            b_snp_score_list.append(snp_score)
+            # b_argmax = torch.argmax(b_ht, dim=1).float().cuda() # classification
+            # # print(f_argmax, f_argmax.shape) # [128]
+            #
+            # snp_loss = self.loss(b_argmax, self.target)
+            # # print("backwarding:", backward_step, snp_loss)
+            # b_loss_list.append(snp_loss.data)
 
             start += 6
             end += 6
             backward_step += 1
 
-        f_loss = sum(f_loss_list) / forward_step
-        b_loss = sum(b_loss_list) / backward_step
-        # print(f_loss, b_loss)
+        # print("forwarding score:", f_snp_score_list)
+        # print("backwarding score:", b_snp_score_list)
 
-        total_loss = (f_loss.item() + b_loss.item()) / 2
+        out_score_list = []
 
-        return torch.tensor(total_loss).float().cuda()
+        # forward / backward 한번이라도 highlight라고 매겨졌으면 해당 snippet은 highlight라고 간주? -> 이렇게 해도 되나...
+        # 그냥 forward backward score list 합해서 내보내는게 낫나..?
+        for f_score, b_score in zip(f_snp_score_list, b_snp_score_list):
+            if f_score == 0 and b_score == 0:
+                out_score_list.append(0.)
+            else:
+                out_score_list.append(1.)
+
+        #print(out_score_list)
+
+        # f_loss = sum(f_loss_list) / forward_step
+        # b_loss = sum(b_loss_list) / backward_step
+        # # print(f_loss, b_loss)
+        #
+        # total_loss = (f_loss.item() + b_loss.item()) / 2
+        out_score_list = np.asarray(out_score_list)
+        out_score_list = torch.from_numpy(out_score_list).cuda()
+
+        return out_score_list
 
 if __name__ == '__main__':
     # load videos
-    h_loader, r_loader = get_loader(h_video_path, r_video_path)
+    h_loader, r_loader, test_loader = get_loader(h_video_path, r_video_path, test_video_path)
 
     for idx, frames in enumerate(r_loader):
         frames = frames.cuda()
@@ -199,8 +241,8 @@ if __name__ == '__main__':
     c3d = nn.Sequential(*_p3d_net).cuda()  # new p3d net
 
     gru = GRU(c3d)
-    outLoss = gru(frames, 'RV')
-    print(outLoss)
+    out = gru(frames)
+    print(out)
     # print("forwarding:", f_out) # tuple: length 128 for one video
     # print("backwarding:", b_out)  # tuple: length 128 for one video
 
