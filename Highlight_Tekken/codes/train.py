@@ -1,16 +1,11 @@
-import os, time, glob
-from itertools import chain
-
 import numpy as np
 import sys
-import itertools, time, os
+import time
 import torch
 from torch import nn
-import torchvision.utils as vutils
+
 from torch.autograd import Variable
 import torch.optim as optim
-import random
-import torch.backends.cudnn as cudnn
 
 from models.bidirectional import C3D, GRU
 from vis_tool import Visualizer
@@ -120,11 +115,13 @@ class Trainer(object):
                     step_end_time = time.time()
 
                     total_loss = h_loss + r_loss
+
                     # print logging
                     print('[%d/%d][%d/%d] - time: %.2f, h_loss: %.3f, r_loss: %.3f, total_loss: %.3f'
                           % (epoch + 1, self.n_epochs, step + 1, min(len(self.h_loader), len(self.r_loader)),
                              step_end_time - start_t, h_loss, r_loss, total_loss))
-                    self.vis.plot('Loss', (total_loss.data).cpu().numpy())
+
+                    self.vis.plot("Loss with lr=%.4f" % self.lr, (total_loss.data).cpu().numpy()) # visdom plot
 
                     # validating for test dataset
                     # compute predicted score accuracy
