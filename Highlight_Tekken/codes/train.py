@@ -150,5 +150,7 @@ class Trainer(object):
 
             # save checkpoints
             if epoch % self.checkpoint_step == 0:
-                torch.save(self.gru.state_dict(), '../checkpoints/epoch' + str(epoch) + '.pth')
+                now = time.localtime()
+                s = "%04d-%02d-%02d %02d-%02d-%02d" % (now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec)
+                torch.save(self.gru.state_dict(), '../checkpoints/epoch' + str(epoch) + '_' + s + '.pth')
                 print("checkpoint saved!")
