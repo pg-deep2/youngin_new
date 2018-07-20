@@ -15,6 +15,11 @@ import torch.backends.cudnn as cudnn
 from models.bidirectional import C3D, GRU
 from vis_tool import Visualizer
 
+import time
+
+# -*- coding: cp949 -*-
+
+
 def denorm(x):
     out = (x+1)/2
     return out.clamp(0, 1)
@@ -124,7 +129,7 @@ class Trainer(object):
                     print('[%d/%d][%d/%d] - time: %.2f, h_loss: %.3f, r_loss: %.3f, total_loss: %.3f'
                           % (epoch + 1, self.n_epochs, step + 1, min(len(self.h_loader), len(self.r_loader)),
                              step_end_time - start_t, h_loss, r_loss, total_loss))
-                    self.vis.plot('Loss', (total_loss.data).cpu().numpy())
+                    self.vis.plot('Loss with lr=%.4f' % self.lr, (total_loss.data).cpu().numpy())
 
                     # validating for test dataset
                     # compute predicted score accuracy
@@ -153,5 +158,8 @@ class Trainer(object):
 
             # save checkpoints
             if epoch % self.checkpoint_step == 0:
-                torch.save(self.gru.state_dict(), '../checkpoints/epoch' + str(epoch) + '.pth')
+                now = time.localtime()
+                s = "%04d-%02d-%02d %02d-%02d-%02d" % (
+                now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec)
+                torch.save(self.gru.state_dict(), '../checkpoints/epoch' + str(epoch) + '_' + s + '.pth')
                 print("checkpoint saved!")
