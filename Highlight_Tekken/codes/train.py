@@ -46,6 +46,7 @@ class Trainer(object):
         self.load_model() # load pretrained weight and remove FC layers
 
         self.gru = GRU(self.p3d).cuda() # bidirectional GRU
+        self.gru.load_state_dict(torch.load('../checkpoints/epoch5_2018-07-21 10-56-02.pth'))
 
         print("MODEL:")
         print(self.gru)
@@ -81,6 +82,7 @@ class Trainer(object):
 
         for epoch in range(self.n_epochs):
             # common_len = min(len(self.h_loader),len(self.r_loader))
+            epoch_loss = []
             try:
                 for step, (h, r) in enumerate(zip(self.h_loader, self.r_loader)):
                     h_video = h
@@ -115,13 +117,14 @@ class Trainer(object):
                     step_end_time = time.time()
 
                     total_loss = h_loss + r_loss
+                    epoch_loss.append((total_loss.data).cpu().numpy())
 
                     # print logging
                     print('[%d/%d][%d/%d] - time: %.2f, h_loss: %.3f, r_loss: %.3f, total_loss: %.3f'
                           % (epoch + 1, self.n_epochs, step + 1, min(len(self.h_loader), len(self.r_loader)),
                              step_end_time - start_t, h_loss, r_loss, total_loss))
 
-                    self.vis.plot("Loss with lr=%.4f" % self.lr, (total_loss.data).cpu().numpy()) # visdom plot
+                    # self.vis.plot("Loss with lr=%.4f" % self.lr, (total_loss.data).cpu().numpy()) # visdom plot
 
                     # validating for test dataset
                     # compute predicted score accuracy
@@ -130,6 +133,8 @@ class Trainer(object):
                         #     t_video = t[0]
                         #     t_label = t[1]
                         pass
+                print('[%d/%d] average loss: %.3f' % (epoch+1, self.n_epochs, np.mean(epoch_loss)))
+                self.vis.plot("Epoch %d, Avg loss plot" % epoch, np.mean(epoch_loss))
 
             # keyboard interrupt routine => save checkpoint file & hyper parameters
             except KeyboardInterrupt:
