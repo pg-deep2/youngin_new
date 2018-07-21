@@ -59,7 +59,7 @@ class Test():
 
             # forwarding
             predicted = self.gru(video.cuda())
-            predicted = predicted.cpu().numpy()[:len(label)] # forwarding score만 정확도 계산에 포함
+            predicted = predicted.cpu().numpy() # forwarding score만 정확도 계산에 포함
 
             print('Predicted output:', predicted) # [forwarding score ....., backwarding score]
             print('Predicted output length:', len(predicted))
@@ -82,6 +82,7 @@ class Test():
                 start += 6
                 end += 6
 
+            predicted = predicted[0: len(snp_label)]
             print(predicted, len(predicted))
             print(snp_label, len(snp_label))
 
