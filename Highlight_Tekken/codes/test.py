@@ -1,6 +1,7 @@
 # define some directories
 import torch
 import torch.nn as nn
+import sys
 
 from videoloader import get_loader
 from models.bidirectional import C3D, GRU
@@ -69,7 +70,6 @@ class Test():
             # label => snippet 단위로 쪼개서 accuracy 계산
             start = 0
             end = 48
-            predicted_snp_idx = 0
             snp_label = []
 
             while end < len(label):
@@ -83,13 +83,13 @@ class Test():
                 end += 6
 
             predicted = predicted[0: len(snp_label)]
-            print(predicted, len(predicted))
-            print(snp_label, len(snp_label))
+            # print(predicted, len(predicted))
+            # print(snp_label, len(snp_label))
 
             for pred, label in zip(predicted, snp_label):
-                if pred >= 0.85 and label == 1:
+                if pred >= 0.5 and label == 1:
                     acc += 1 / len(predicted)
-                elif pred < 0.85 and label == 0:
+                elif pred < 0.5 and label == 0:
                     acc += 1 / len(predicted)
 
             avg_acc += acc / len(self.test_loader)
@@ -97,8 +97,9 @@ class Test():
         print("Average accuracy with test dataset:", avg_acc)
 
 if __name__ == '__main__':
+    ckpt = sys.argv[1] # cmd 첫번째 인자로 ckpt 경로 전달
     myEval = Test(test_path='../dataset/testRV',
                   weight_path='../weight/c3d.pickle',
-                  ckpt_path='../checkpoints/exception/x.pth')
+                  ckpt_path=ckpt)
     myEval.forward_and_evaluate()
 

@@ -30,7 +30,8 @@ class Trainer(object):
         self.n_epochs = config.n_epochs
 
         self.log_interval = int(config.log_interval)
-        self.checkpoint_step = int(config.checkpoint_step)
+        #self.checkpoint_step = int(config.checkpoint_step)
+        self.ckpt = config.checkpoint
 
         self.use_cuda = config.cuda
         self.outf = config.outf
@@ -46,7 +47,7 @@ class Trainer(object):
         self.load_model() # load pretrained weight and remove FC layers
 
         self.gru = GRU(self.p3d).cuda() # bidirectional GRU
-        self.gru.load_state_dict(torch.load('../checkpoints/epoch5_2018-07-21 10-56-02.pth'))
+        self.gru.load_state_dict(torch.load(self.ckpt))
 
         print("MODEL:")
         print(self.gru)
@@ -78,10 +79,11 @@ class Trainer(object):
         start_t = time.time()
 
         criterion = nn.BCELoss() # define loss function
-        self.gru.train() # model: training mode
+        #self.gru.train() # model: training mode
 
         for epoch in range(self.n_epochs):
             # common_len = min(len(self.h_loader),len(self.r_loader))
+            self.gru.train()
             epoch_loss = []
             try:
                 for step, (h, r) in enumerate(zip(self.h_loader, self.r_loader)):
@@ -126,15 +128,59 @@ class Trainer(object):
 
                     # self.vis.plot("Loss with lr=%.4f" % self.lr, (total_loss.data).cpu().numpy()) # visdom plot
 
-                    # validating for test dataset
-                    # compute predicted score accuracy
-                    if step % self.log_interval == 0:
-                        # for step, t in enumerate(self.test_loader):
-                        #     t_video = t[0]
-                        #     t_label = t[1]
-                        pass
+
                 print('[%d/%d] average loss: %.3f' % (epoch+1, self.n_epochs, np.mean(epoch_loss)))
-                self.vis.plot("Epoch %d, Avg loss plot" % epoch, np.mean(epoch_loss))
+                self.vis.plot("Avg loss plot", np.mean(epoch_loss))
+
+                # validating for test dataset
+                self.gru.eval()  # set model eval mode
+                avg_acc = 0
+
+                for idx, (video, label) in enumerate(self.test_loader):
+
+                    acc = 0.
+
+                    video = Variable(video.cuda())
+                    label = label.squeeze()
+
+                    # forwarding
+                    predicted = self.gru(video.cuda())
+                    predicted = predicted.cpu().numpy()  # forwarding score만 정확도 계산에 포함
+
+                    # print('Predicted output:', predicted)  # [forwarding score ....., backwarding score]
+                    # print('Predicted output length:', len(predicted))
+                    # print('Actual label:', label)
+                    # print('Actual label length:', len(label))
+
+                    # label => snippet 단위로 쪼개서 accuracy 계산
+                    start = 0
+                    end = 48
+                    snp_label = []
+
+                    while end < len(label):
+                        # 해당 snippet의 label에 1이 포함되어 있는 경우
+                        if 1. in label[start: end]:
+                            snp_label.append(1)
+                        else:
+                            snp_label.append(0)
+
+                        start += 6
+                        end += 6
+
+                    predicted = predicted[0: len(snp_label)]
+
+                    for pred, label in zip(predicted, snp_label):
+                        if pred >= 0.5 and label == 1:
+                            acc += 1 / len(predicted)
+                        elif pred < 0.5 and label == 0:
+                            acc += 1 / len(predicted)
+
+                    avg_acc += acc / len(self.test_loader)
+
+                print('[%d/%d] average acc on validating set: %.3f' % (epoch + 1, self.n_epochs, avg_acc))
+                self.vis.plot("Validating accuracy plot", avg_acc)
+                print("======================================================================")
+
 
             # keyboard interrupt routine => save checkpoint file & hyper parameters
             except KeyboardInterrupt:
