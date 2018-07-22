@@ -83,8 +83,8 @@ class GRU(nn.Module):
             h = self.temporal_pool(h).permute(0, 2, 1).squeeze()
 
             f_ht = (self.gru(h.cuda(), f_ht)) # [128, 10]
-            f_ht_flatten = f_ht.view(1, -1) # [1, 128*10] # flatten to
-            fc1_out = self.fc1(f_ht_flatten)
+            flatten = f_ht.view(1, -1) # [1, 128*10] # flatten to FC
+            fc1_out = self.fc1(flatten)
             fc2_out = self.fc2(fc1_out)
             sigmoid_out = self.sigmoid(fc2_out)
 
@@ -112,13 +112,16 @@ class GRU(nn.Module):
             h = h.view(1, 512, -1).permute(0, 2, 1)
             h = self.temporal_pool(h).permute(0, 2, 1).squeeze()
 
-            b_ht = (self.gru(h.cuda(), b_ht))
-            b_ht_flatten = b_ht.view(1, -1)  # [1, 128*10] # flatten to
-            fc1_out = self.fc1(b_ht_flatten)
+            b_ht = (self.gru(h.cuda(), b_ht)) # [128, 10]
+            flatten = b_ht.view(1, -1)  # [1, 128*10] # flatten to
+            fc1_out = self.fc1(flatten)
             fc2_out = self.fc2(fc1_out)
             sigmoid_out = self.sigmoid(fc2_out)
 
+<<<<<<< HEAD
+=======
 
+>>>>>>> f76f627d0f933a88dd6f2c4bba8f4184c9cc5b05
             b_snp_score_list.append(sigmoid_out.item())
             start += 6
             end += 6
