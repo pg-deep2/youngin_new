@@ -19,5 +19,7 @@ parser.add_argument('--cuda', action='store_true', help='enables cuda')
 parser.add_argument('--outf', default=None, help='folder model checkpoints')
 parser.add_argument('--pretrained_path', default="../weight/c3d.pickle", help='path to pretrained resnet model')
 
+parser.add_argument('--checkpoint', default=None, help='pretrained checkpoint')
+
 def get_config():
     return parser.parse_args()

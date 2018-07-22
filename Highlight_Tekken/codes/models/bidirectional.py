@@ -118,6 +118,10 @@ class GRU(nn.Module):
             fc2_out = self.fc2(fc1_out)
             sigmoid_out = self.sigmoid(fc2_out)
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> f76f627d0f933a88dd6f2c4bba8f4184c9cc5b05
             b_snp_score_list.append(sigmoid_out.item())
             start += 6
             end += 6
