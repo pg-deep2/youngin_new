@@ -9,8 +9,10 @@ import torch
 import torch.backends.cudnn as cudnn
 
 from config import get_config
-from train import Trainer
-from videoloader import get_loader
+from trainer import Trainer
+
+from dataloader import get_loader
+
 
 def main(config):
     if config.outf is None:
@@ -28,15 +30,17 @@ def main(config):
     cudnn.benchmark = True
 
     dataroot = config.dataroot
-    h_datapath = os.path.join(dataroot,"HV")
-    r_datapath = os.path.join(dataroot,"RV")
-    t_datapath = os.path.join(dataroot,'testRV')
+    h_datapath = os.path.join(dataroot, "HV")
+    r_datapath = os.path.join(dataroot, "RV")
+    t_datapath = os.path.join(dataroot, 'testRV')
 
     # dataroot, cache, image_size, n_channels, image_batch, video_batch, video_length):
-    h_loader, r_loader, test_loader = get_loader(h_datapath, r_datapath, t_datapath)
+    h_loader, r_loader, t_loader = get_loader(h_datapath, r_datapath, t_datapath, 1)
+    config.n_steps = min(len(h_loader), len(r_loader))
 
-    trainer = Trainer(config, h_loader, r_loader, test_loader)
+    trainer = Trainer(config, h_loader, r_loader)
     trainer.train()
+
 
 if __name__ == "__main__":
     config = get_config()
