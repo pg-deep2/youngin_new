@@ -34,14 +34,24 @@ class Trainer(object):
     def build_model(self):
         self.c2d = CNN().cuda()
         self.c2d.load_state_dict(torch.load('cnn.pkl'))  # load pre-trained cnn extractor
-        # self.c2d = nn.Parameter(self.c2d, requires_grad=False) # no tuning
+
+
+        # for l,p in self.c2d.named_parameters():
+        #     print(l)
+
+        # self.c2d = nn.Sequential(*list(self.c2d.children())[:-1])
+        for l,p in self.c2d.named_parameters():
+
+            p.requires_grad = False
+            print(l,p.requires_grad)
 
         # c2d_layer = list(self.c2d.children())
         # fixed_layers = []
         # 
-        # for layer in c2d_layer:
-        #     for param in layer.parameters():
-        #         param.requires_grad = False # no trainable parameters
+        # for param in self.c2d.parameters():
+        #     param.requires_grad = False
+        #     print(param.requires_grad)
+            # no trainable parameters
         #     fixed_layers.append(layer)
         # 
         # self.c2d = nn.Sequential(*fixed_layers).cuda()
@@ -49,8 +59,7 @@ class Trainer(object):
         # 여기서 c2d fix 시키게 어떻게 함..? ㅠㅠㅠㅠㅠ
 
         self.gru = GRU(self.c2d).cuda()
-        print("MODEL:")
-        print(self.gru)
+
 
     def train(self):
         # create optimizers

@@ -133,7 +133,7 @@ class TestDataset(torch.utils.data.Dataset):
                 # HWC2CHW
                 frame = frame.transpose(2, 0, 1)
                 # transform. 270x480 -> 240x400
-                frame = frame[:, 15:255, 40:440]
+                # frame = frame[:, 15:255, 40:440]
                 frames.append(frame)
                 # print(frame)
             else:
@@ -169,6 +169,7 @@ def video_transform(video, image_transform):
 def get_loader(h_dataroot, r_dataroot, t_dataroot, batch_size=1):
     image_transforms = transforms.Compose([
         Image.fromarray,
+        transforms.Resize((299,299)),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ])
